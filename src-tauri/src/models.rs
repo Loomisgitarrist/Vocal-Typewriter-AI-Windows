@@ -6,7 +6,6 @@ pub enum ModelType {
     WhisperMedium,
     WhisperLarge,
     WhisperTurbo,
-    ParakeetV2,
     ParakeetV3,
 }
 
@@ -35,16 +34,6 @@ impl ModelInfo {
                 model_type: ModelType::ParakeetV3,
                 is_active: true,
                 installed: false, // Updated dynamically
-            },
-            ModelInfo {
-                id: "parakeet-v2".to_string(),
-                name: "Parakeet V2".to_string(),
-                description: "English only. The best model for English speakers.".to_string(),
-                url: "https://blob.handy.computer/parakeet-v2-int8.tar.gz".to_string(),
-                size_mb: 473,
-                model_type: ModelType::ParakeetV2,
-                is_active: false,
-                installed: false,
             },
         ];
 

@@ -1400,8 +1400,7 @@ function App() {
                                  try {
                                    await invoke("load_model_by_id", { modelId: model.id });
                                    setActiveModelId(model.id);
-                                   const engine = model.model_type.toLowerCase().includes('parakeet') ? 'parakeet' : 'whisper';
-                                   setSettings(prev => ({...prev, active_model_id: model.id, transcription_engine: engine}));
+                                   setSettings(prev => ({...prev, active_model_id: model.id, transcription_engine: 'parakeet'}));
                                    checkModelStatus();
                                  } catch (error) {
                                    console.error(`Failed to select ${model.name}:`, error);

@@ -1256,8 +1256,8 @@ fn load_model_by_id(model_id: String, app: tauri::AppHandle) -> Result<(), Strin
     
     // Switch engine based on model type
     let engine_type = match model.model_type {
-        models::ModelType::ParakeetV2 | models::ModelType::ParakeetV3 => "parakeet",
-        _ => "whisper",
+        models::ModelType::ParakeetV3 => "parakeet",
+        _ => return Err("Only Parakeet V3 is supported in this build.".to_string()),
     };
     
     println!("Switching to engine: {}", engine_type);

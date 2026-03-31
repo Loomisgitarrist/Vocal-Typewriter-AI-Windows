@@ -127,7 +127,7 @@ impl ModelManager {
                 }
                 None
             },
-            ModelType::ParakeetV2 | ModelType::ParakeetV3 => {
+            ModelType::ParakeetV3 => {
                  // Check for the extracted file
                 let parakeet_dir = self.models_dir.join("parakeet-tdt-0.6b-v3-int8");
                 if parakeet_dir.join("encoder-model.int8.onnx").exists() {
@@ -204,7 +204,7 @@ impl ModelManager {
                 // Whisper: save as .bin file
                 self.get_model_path(&model.id).with_extension("bin")
             },
-            ModelType::ParakeetV2 | ModelType::ParakeetV3 => {
+            ModelType::ParakeetV3 => {
                 // Parakeet: save as .tar.gz, will extract later
                 self.models_dir.join(format!("{}.tar.gz", model.id))
             }
@@ -247,7 +247,7 @@ impl ModelManager {
         println!("Download complete: {}", part_path.display());
         
         // Extract if it's a Parakeet model
-        if matches!(model.model_type, ModelType::ParakeetV2 | ModelType::ParakeetV3) {
+        if matches!(model.model_type, ModelType::ParakeetV3) {
             println!("Extracting Parakeet model...");
             let _ = app_handle.emit("model-extraction-started", model_id.clone());
             
@@ -273,4 +273,3 @@ impl ModelManager {
         Ok(())
     }
 }
-
