@@ -1663,10 +1663,9 @@ function App() {
           }}
         >
           <option value="parakeet">Parakeet (Fast, Native)</option>
-          <option value="whisper">Whisper (High Accuracy, Slower)</option>
         </select>
         <p className="hint" style={{marginTop: '8px'}}>
-          Parakeet is optimized for speed. Whisper provides higher accuracy but may be slower on older hardware.
+          Parakeet is optimized for speed and runs fully locally.
         </p>
       </section>
 

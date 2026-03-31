@@ -194,6 +194,15 @@ pub fn load_settings(app: &AppHandle) -> Settings {
                             println!("⚠️ Automatically optimizing model to llama3.2:1b for speed");
                             settings.ollama_model = "llama3.2:1b".to_string();
                         }
+                        #[cfg(not(target_os = "macos"))]
+                        {
+                            if settings.transcription_engine.to_lowercase() != "parakeet" {
+                                settings.transcription_engine = "parakeet".to_string();
+                            }
+                            if settings.active_model_id.to_lowercase().contains("whisper") {
+                                settings.active_model_id = default_active_model_id();
+                            }
+                        }
                         return settings;
                     }
                     Err(e) => {

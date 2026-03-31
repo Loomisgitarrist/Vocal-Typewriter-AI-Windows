@@ -6,9 +6,6 @@ use transcribe_rs::{
     TranscriptionEngine,
 };
 
-#[cfg(target_os = "macos")]
-use whisper_rs::{WhisperContext, FullParams, SamplingStrategy, WhisperContextParameters};
-
 /// The "Standard Control Panel" (Interface)
 /// Any AI engine we add (Parakeet, Whisper, etc.) must sign this contract.
 pub trait SpeechEngine: Send + Sync {
@@ -75,71 +72,6 @@ impl SpeechEngine for ParakeetBackend {
     }
 }
 
-/// The Wrapper for the Whisper Engine
-#[cfg(target_os = "macos")]
-struct WhisperBackend {
-    context: Option<WhisperContext>,
-}
-
-#[cfg(target_os = "macos")]
-impl WhisperBackend {
-    fn new() -> Self {
-        Self { context: None }
-    }
-}
-
-#[cfg(target_os = "macos")]
-impl SpeechEngine for WhisperBackend {
-    fn load(&mut self, model_path: &str) -> Result<()> {
-        println!("🔄 Loading Whisper model from: {}", model_path);
-        
-        // Whisper expects a file path to the model binary (e.g., ggml-base.en.bin)
-        let ctx = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())
-            .map_err(|e| anyhow::anyhow!("Failed to load Whisper model: {}", e))?;
-            
-        println!("✅ Whisper model loaded successfully!");
-        self.context = Some(ctx);
-        Ok(())
-    }
-
-    fn transcribe(&mut self, audio: Vec<f32>) -> Result<String> {
-        let ctx = self.context.as_mut().ok_or_else(|| anyhow::anyhow!("Whisper model not loaded"))?;
-        let mut state = ctx.create_state().map_err(|e| anyhow::anyhow!("Failed to create Whisper state: {}", e))?;
-        
-        // Configure Whisper parameters
-        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        params.set_n_threads(4); // Use 4 threads by default
-        params.set_translate(false);
-        params.set_language(Some("en")); // Default to English, can be made configurable later
-        params.set_print_special(false);
-        params.set_print_progress(false);
-        params.set_print_realtime(false);
-        params.set_print_timestamps(false);
-
-        // Run transcription
-        state.full(params, &audio[..])
-            .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))?;
-
-        // Retrieve segments
-        let num_segments = state.full_n_segments().map_err(|e| anyhow::anyhow!("Failed to get segment count: {}", e))?;
-        let mut text = String::new();
-        
-        for i in 0..num_segments {
-            let segment = state.full_get_segment_text(i).map_err(|e| anyhow::anyhow!("Failed to get segment text: {}", e))?;
-            text.push_str(&segment);
-            text.push(' ');
-        }
-
-        Ok(text.trim().to_string())
-    }
-
-    fn unload(&mut self) -> Result<()> {
-        self.context = None;
-        println!("✅ Whisper model unloaded");
-        Ok(())
-    }
-}
-
 // Global variable now holds a generic "SpeechEngine" instead of just Parakeet
 static ACTIVE_ENGINE: Lazy<Mutex<Box<dyn SpeechEngine>>> = Lazy::new(|| {
     // We default to Parakeet for now
@@ -152,11 +84,6 @@ pub fn switch_engine(engine_type: &str) -> Result<()> {
         "parakeet" => {
             println!("🔀 Switching to Parakeet engine");
             *engine_guard = Box::new(ParakeetBackend::new());
-        },
-        #[cfg(target_os = "macos")]
-        "whisper" => {
-            println!("🔀 Switching to Whisper engine");
-            *engine_guard = Box::new(WhisperBackend::new());
         },
         _ => return Err(anyhow::anyhow!("Unknown engine type: {}", engine_type)),
     }

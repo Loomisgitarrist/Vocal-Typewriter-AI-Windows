@@ -1210,6 +1210,12 @@ fn get_active_model(state: tauri::State<'_, AppState>) -> String {
 
 #[tauri::command]
 fn set_transcription_engine(engine: String) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        if engine.to_lowercase() != "parakeet" {
+            return Err("Only Parakeet is supported in this build.".to_string());
+        }
+    }
     transcription::switch_engine(&engine).map_err(|e| e.to_string())
 }
 
