@@ -5,6 +5,8 @@ use transcribe_rs::{
     engines::parakeet::{ParakeetEngine, ParakeetInferenceParams, ParakeetModelParams, TimestampGranularity},
     TranscriptionEngine,
 };
+
+#[cfg(target_os = "macos")]
 use whisper_rs::{WhisperContext, FullParams, SamplingStrategy, WhisperContextParameters};
 
 /// The "Standard Control Panel" (Interface)
@@ -74,16 +76,19 @@ impl SpeechEngine for ParakeetBackend {
 }
 
 /// The Wrapper for the Whisper Engine
+#[cfg(target_os = "macos")]
 struct WhisperBackend {
     context: Option<WhisperContext>,
 }
 
+#[cfg(target_os = "macos")]
 impl WhisperBackend {
     fn new() -> Self {
         Self { context: None }
     }
 }
 
+#[cfg(target_os = "macos")]
 impl SpeechEngine for WhisperBackend {
     fn load(&mut self, model_path: &str) -> Result<()> {
         println!("🔄 Loading Whisper model from: {}", model_path);
@@ -148,6 +153,7 @@ pub fn switch_engine(engine_type: &str) -> Result<()> {
             println!("🔀 Switching to Parakeet engine");
             *engine_guard = Box::new(ParakeetBackend::new());
         },
+        #[cfg(target_os = "macos")]
         "whisper" => {
             println!("🔀 Switching to Whisper engine");
             *engine_guard = Box::new(WhisperBackend::new());
