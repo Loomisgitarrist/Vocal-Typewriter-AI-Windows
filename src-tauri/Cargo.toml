@@ -56,8 +56,10 @@ tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.
 cocoa = "0.26"
 objc = "0.2"
 
+# whisper-rs requires C++ compilation which fails on GitHub Actions Windows runners
+# Since this app primarily uses Parakeet, we exclude whisper on Windows
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-whisper-rs = { version = "0.13" }
+# whisper-rs = { version = "0.13" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.52", features = [
