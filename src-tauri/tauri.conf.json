@@ -1,0 +1,162 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Vocal Typewriter AI",
+    "version": "1.0.0",
+    "identifier": "com.vocaltypewriter.newapp",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "",
+        "width": 600,
+        "height": 700,
+        "minWidth": 600,
+        "minHeight": 500,
+        "resizable": true,
+        "maximizable": false,
+        "visible": true
+      },
+      {
+        "label": "recording_overlay",
+        "title": "Recording",
+        "width": 172,
+        "height": 36,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "url": "overlay.html"
+      },
+      {
+        "label": "style_selector",
+        "title": "Style Selector",
+        "width": 400,
+        "height": 900,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "url": "style-selector.html"
+      },
+      {
+        "label": "highlight_overlay",
+        "title": "Highlight Overlay",
+        "width": 800,
+        "height": 600,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "url": "highlight.html"
+      },
+      {
+        "label": "highlight_result",
+        "title": "AI Result",
+        "width": 600,
+        "height": 500,
+        "minWidth": 400,
+        "minHeight": 300,
+        "resizable": true,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "visible": false,
+        "skipTaskbar": false,
+        "url": "highlight-result.html"
+      },
+      {
+        "label": "selection_overlay",
+        "title": "Selection Overlay",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "url": "selection.html"
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["**"],
+          "requireLiteralLeadingDot": false
+        }
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5MDVFMThCN0JFNTQ1REYKUldUZlJlVjdpK0VGT2JVS3ozYWQ4RWpwdXlvSjZqWDBQUXoyNG9xWFRHdnpjeWtsOUZTL1Rud2UK"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "resources": ["resources/**/*"],
+    "license": "MIT",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "wix": {
+        "language": "en-US",
+        "template": null,
+        "fragmentPaths": []
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "installMode": "both"
+      },
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    },
+    "macOS": {
+      "hardenedRuntime": true,
+      "minimumSystemVersion": "10.15",
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist"
+    }
+  }
+}

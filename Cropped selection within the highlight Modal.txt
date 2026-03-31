@@ -1,0 +1,62 @@
+# Solution: Precise Screen Capture on High-DPI (Retina) Displays
+
+## The Problem
+When capturing a screen region on macOS (Retina displays), there is a mismatch between coordinate systems:
+1. **Frontend (Tauri/JS):** Uses **Logical** pixels (e.g., a 100x100 box is 100 CSS pixels).
+2. **Window Position (Rust/Tauri):** Returned in **Physical** pixels (e.g., on a 2x screen, that 100px box is 200 physical pixels).
+3. **Screen Info (screenshots crate):** Returns **Physical** dimensions.
+4. **Capture API (CoreGraphics via screenshots):** On macOS, `capture_area` expects **Logical** points for the rectangle definition (x, y, width, height), even though it returns a high-resolution (Physical) image.
+
+## Symptoms of Incorrect Logic
+- **"Double Calculation":** If you pass physical coordinates to the capture function, it interprets them as logical points. On a 2x screen, capturing at x=100 (physical) makes it capture at x=200 (logical), shifting the image "way too low" and to the right.
+- **"Way too low":** This is the classic symptom of applying the scale factor twice or applying it to the offset when the API expects unscaled points.
+
+## The Solution (Implemented in `src-tauri/src/commands/highlight.rs`)
+
+We successfully fixed this by:
+1. **Retrieving the Scale Factor:** We get the `scale_factor` directly from the screen info (`screen.display_info.scale_factor`).
+2. **Standardizing to Physical:** We calculate the *relative* coordinates in physical space first (Window Physical Pos + Selection Physical Pos - Screen Physical Pos).
+3. **Conditional Logic for macOS:**
+   - **Non-macOS:** We pass the physical coordinates directly.
+   - **macOS:** We **divide** the physical coordinates by the `scale_factor` to convert them back to **Logical** points just for the `capture_area` call.
+
+## The Working Code
+
+Location: `src-tauri/src/commands/highlight.rs`
+
+```rust
+// 1. Get the scale factor from the screen where the capture is happening
+let scale = screen.display_info.scale_factor;
+
+// 2. Calculate coordinates relative to the screen (in Physical pixels initially)
+let relative_x = x - screen.display_info.x;
+let relative_y = y - screen.display_info.y;
+
+// 3. Apply macOS-specific fix
+#[cfg(target_os = "macos")]
+let (capture_x, capture_y, capture_width, capture_height) = {
+    // Convert Physical -> Logical for capture_area on macOS
+    // This prevents the "Double Calculation" / "Way too low" error
+    (
+        (relative_x as f32 / scale) as i32,
+        (relative_y as f32 / scale) as i32,
+        (width as f32 / scale) as u32,
+        (height as f32 / scale) as u32,
+    )
+};
+
+#[cfg(not(target_os = "macos"))]
+let (capture_x, capture_y, capture_width, capture_height) = {
+    (relative_x, relative_y, width, height)
+};
+
+// 4. Perform Capture
+let buffer = screen.capture_area(capture_x, capture_y, capture_width, capture_height)?;
+```
+
+## Summary Checklist for Future
+If this breaks again or needs to be reimplemented:
+- [ ] **Never** assume `capture_area` takes physical pixels on all platforms.
+- [ ] **Always** check `screen.display_info.scale_factor`.
+- [ ] **On macOS**, ensure you feed **Logical** coordinates to `capture_area` to get a **Physical** (Retina) image back.
+- [ ] Verify using the "Result Window" image preview which shows exactly what the backend captured.

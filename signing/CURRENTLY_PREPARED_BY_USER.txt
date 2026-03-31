@@ -1,0 +1,14 @@
+Hmm.The following secrets have been prepared and configured in the GitHub Actions repository secrets by the user:
+
+- APPLE_CERTIFICATE
+- APPLE_CERTIFICATE_PASSWORD
+- APPLE_ID
+- APPLE_PASSWORD
+- APPLE_SIGNING_IDENTITY
+- APPLE_TEAM_ID
+- TAURI_SIGNING_PRIVATE_KEY
+- TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+- WINDOWS_CERT_PASSWORD
+- WINDOWS_CERT_PFX
+
+No further action is needed for CI/CD secret configuration.

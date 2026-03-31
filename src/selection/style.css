@@ -1,0 +1,186 @@
+:root {
+  --selection-border: #a855f7;
+  --selection-bg: rgba(168, 85, 247, 0.1);
+  --handle-size: 10px;
+}
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+.overlay-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: crosshair;
+  background: rgba(0, 0, 0, 0.1); /* Slight tint to show window area */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Window Drag Handle */
+.window-drag-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 32px;
+    background: rgba(30, 30, 30, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    box-sizing: border-box;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: default; /* Cursor handled by Tauri */
+}
+
+.window-title {
+    color: #e4e4e7;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    pointer-events: none; /* Let clicks pass to drag region */
+}
+
+.window-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.window-close-btn {
+    background: transparent;
+    border: none;
+    color: #a1a1aa;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.window-close-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.initial-dimmer {
+  position: absolute;
+  top: 32px; /* Start below drag handle */
+  left: 0;
+  width: 100%;
+  height: calc(100% - 32px);
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.selection-box {
+  position: absolute;
+  background: var(--selection-bg);
+  border: 2px solid var(--selection-border);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5); /* Cutout effect */
+  z-index: 10;
+  pointer-events: auto !important; /* Ensure clickable for moving */
+  cursor: move;
+}
+
+.resize-handle {
+    position: absolute;
+    width: var(--handle-size);
+    height: var(--handle-size);
+    background: white;
+    border: 1px solid var(--selection-border);
+    border-radius: 50%;
+    z-index: 20;
+    pointer-events: auto !important; /* Ensure clickable for resizing */
+}
+
+.handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
+.handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
+.handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
+.handle-n { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.handle-s { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.handle-w { top: 50%; left: -5px; transform: translateY(-50%); cursor: w-resize; }
+.handle-e { top: 50%; right: -5px; transform: translateY(-50%); cursor: e-resize; }
+
+.dimensions-label {
+  position: absolute;
+  top: -28px; /* Move to top left usually, or follow logic */
+  left: 0;
+  background: var(--selection-border);
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.selection-toolbar {
+    position: absolute;
+    bottom: -50px;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    background: #1e1e1e;
+    padding: 6px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 30;
+    pointer-events: auto !important;
+}
+
+.btn-confirm, .btn-cancel {
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-confirm {
+    background: #a855f7;
+    color: white;
+}
+.btn-confirm:hover {
+    background: #9333ea;
+}
+
+.btn-cancel {
+    background: #3f3f46;
+    color: #e4e4e7;
+}
+.btn-cancel:hover {
+    background: #52525b;
+}
+
+.instruction-toast {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  font-size: 14px;
+  font-weight: 500;
+}

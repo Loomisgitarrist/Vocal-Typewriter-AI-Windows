@@ -1,0 +1,52 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Windows targets
+        run: |
+          rustup target add x86_64-pc-windows-msvc
+          rustup target add aarch64-pc-windows-msvc
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build x64
+        run: bun tauri build --target x86_64-pc-windows-msvc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ARM64
+        run: bun tauri build --target aarch64-pc-windows-msvc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release Directory
+        run: |
+          mkdir -p release-windows
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi release-windows/ 2>/dev/null || true
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe release-windows/ 2>/dev/null || true
+          cp src-tauri/target/aarch64-pc-windows-msvc/release/bundle/msi/*.msi release-windows/ 2>/dev/null || true
+          cp src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe release-windows/ 2>/dev/null || true
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: release-windows/

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Request microphone access for dictation</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Request accessibility access for typing text</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Vocal Typewriter needs access to save and load AI models in the Downloads folder.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Vocal Typewriter needs access to save and load AI models in the Documents folder if selected.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Vocal Typewriter needs access to save and load AI models on the Desktop if selected.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

@@ -1,0 +1,1 @@
+pub const WHISPER_SAMPLE_RATE: usize = 16000;
