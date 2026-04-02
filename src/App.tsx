@@ -870,9 +870,15 @@ function App() {
         setTimeout(() => setSaved(false), 2000);
         return;
     }
-    await invoke("save_settings", { newSettings: settings });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await invoke("save_settings", { newSettings: settings });
+      console.log("✅ Settings saved successfully");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error("❌ Failed to save settings:", error);
+      alert("Failed to save settings: " + error);
+    }
   };
 
   const handleResetPrompt = () => {

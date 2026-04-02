@@ -176,7 +176,11 @@ impl Default for Settings {
 /// Get the settings file path
 pub fn get_settings_path(app: &AppHandle) -> PathBuf {
     let data_dir = app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."));
-    data_dir.join("settings.json")
+    let path = data_dir.join("settings.json");
+    println!("📁 get_settings_path: app_data_dir = {:?}", data_dir);
+    println!("📁 get_settings_path: final path = {:?}", path);
+    println!("📁 get_settings_path: path exists = {}", path.exists());
+    path
 }
 
 /// Load settings from disk, or return defaults if not found
@@ -224,16 +228,57 @@ pub fn load_settings(app: &AppHandle) -> Settings {
 pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
     let path = get_settings_path(app);
     
-    // Ensure parent directory exists
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create settings directory: {}", e))?;
+    println!("💾 save_settings: Attempting to save to {:?}", path);
+    
+    // Debug: Check if path resolution is working
+    match app.path().app_data_dir() {
+        Ok(data_dir) => println!("💾 app_data_dir resolved to: {:?}", data_dir),
+        Err(e) => println!("💾 app_data_dir ERROR: {:?}", e),
     }
     
-    let json = serde_json::to_string_pretty(settings)
-        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    // Check if parent directory exists
+    if let Some(parent) = path.parent() {
+        println!("💾 Parent directory: {:?}", parent);
+        println!("💾 Parent exists: {}", parent.exists());
+        if !parent.exists() {
+            println!("💾 Creating parent directory...");
+        }
+        if let Err(e) = fs::create_dir_all(parent) {
+            let err_msg = format!("Failed to create settings directory: {}", e);
+            println!("💾 ❌ {}", err_msg);
+            return Err(err_msg);
+        }
+        println!("💾 Parent directory ready");
+    }
     
-    fs::write(&path, json)
-        .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    // Serialize to JSON
+    let json = match serde_json::to_string_pretty(settings) {
+        Ok(j) => {
+            println!("💾 JSON serialized: {} bytes", j.len());
+            j
+        },
+        Err(e) => {
+            let err_msg = format!("Failed to serialize settings: {}", e);
+            println!("💾 ❌ {}", err_msg);
+            return Err(err_msg);
+        }
+    };
+    
+    // Write to file
+    match fs::write(&path, &json) {
+        Ok(()) => {
+            println!("💾 ✅ File written successfully");
+            println!("💾 ✅ File exists now: {}", path.exists());
+            if let Ok(meta) = path.metadata() {
+                println!("💾 ✅ File size: {} bytes", meta.len());
+            }
+        },
+        Err(e) => {
+            let err_msg = format!("Failed to write settings file: {}", e);
+            println!("💾 ❌ {}", err_msg);
+            return Err(err_msg);
+        }
+    }
     
     println!("✅ Settings saved to {:?}", path);
     Ok(())
