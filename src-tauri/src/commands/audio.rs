@@ -36,14 +36,6 @@ pub fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 
 #[tauri::command]
 pub fn set_selected_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
-    let mut settings = settings::load_settings(&app);
-    settings.input_device_id = if device_name == "default" {
-        "default".to_string()
-    } else {
-        device_name
-    };
-    settings::save_settings(&app, &settings)?;
-
     // Update the audio manager to use the new device
     let rm = app.state::<std::sync::Arc<AudioRecordingManager>>();
     rm.update_selected_device()

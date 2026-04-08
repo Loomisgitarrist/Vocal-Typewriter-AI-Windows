@@ -881,12 +881,16 @@ function App() {
     }
   };
 
-  const handleResetPrompt = () => {
+  const handleResetPrompt = async () => {
     const defaultPrompt = DEFAULT_SYSTEM_PROMPT;
-    setSettings({...settings, system_prompt: defaultPrompt});
+    const newSettings = {...settings, system_prompt: defaultPrompt};
+    setSettings(newSettings);
+    if (isTauri()) {
+      await invoke("save_settings", { newSettings });
+    }
   };
 
-  const handleToneChange = (tone: string) => {
+  const handleToneChange = async (tone: string) => {
     if (!tone) return;
     
     let newPrompt = settings.system_prompt;
@@ -898,7 +902,11 @@ function App() {
       if (styleRegex.test(newPrompt)) {
         newPrompt = newPrompt.replace(styleRegex, "").trim();
       }
-      setSettings({ ...settings, tone: tone, system_prompt: newPrompt });
+      const newSettings = { ...settings, tone: tone, system_prompt: newPrompt };
+      setSettings(newSettings);
+      if (isTauri()) {
+        await invoke("save_settings", { newSettings });
+      }
       return;
     }
 
@@ -930,7 +938,11 @@ function App() {
       newPrompt += newBlock;
     }
 
-    setSettings({ ...settings, tone: tone, system_prompt: newPrompt });
+    const newSettings = { ...settings, tone: tone, system_prompt: newPrompt };
+    setSettings(newSettings);
+    if (isTauri()) {
+      await invoke("save_settings", { newSettings });
+    }
   };
 
   const handleSelectModelPath = async () => {
@@ -1474,8 +1486,12 @@ function App() {
           value={settings.input_device_id}
           onChange={async (e) => {
             const deviceId = e.target.value;
-            setSettings({...settings, input_device_id: deviceId});
+            const newSettings = {...settings, input_device_id: deviceId};
+            setSettings(newSettings);
             try {
+              if (isTauri()) {
+                await invoke("save_settings", { newSettings });
+              }
               await invoke("set_selected_microphone", { deviceName: deviceId });
               console.log("Microphone switched to:", deviceId);
             } catch (err) {
@@ -1750,12 +1766,16 @@ function App() {
           How the AI understands what you're working on.
         </p>
         <select 
-          value={settings.context_mode}
-          onChange={(e) => {
-            const newMode = e.target.value;
-            const newPrompt = newMode === "vision" ? VISION_SYSTEM_PROMPT : DEFAULT_SYSTEM_PROMPT;
-            setSettings({...settings, context_mode: newMode, system_prompt: newPrompt});
-          }}
+                value={settings.context_mode}
+                onChange={async (e) => {
+                  const newMode = e.target.value;
+                  const newPrompt = newMode === "vision" ? VISION_SYSTEM_PROMPT : DEFAULT_SYSTEM_PROMPT;
+                  const newSettings = {...settings, context_mode: newMode, system_prompt: newPrompt};
+                  setSettings(newSettings);
+                  if (isTauri()) {
+                    await invoke("save_settings", { newSettings });
+                  }
+                }}
         >
           <option value="none">None - Just transcribe speech</option>
           <option value="selection">Selection - Read highlighted text (Cmd+C)</option>
@@ -1827,10 +1847,16 @@ function App() {
                   </button>
                 </div>
                 <input 
-                    type={showOpenAIKey ? "text" : "password"}
-                    placeholder="sk-..."
-                    value={settings.openai_api_key || ""}
-                    onChange={(e) => setSettings({...settings, openai_api_key: e.target.value})}
+                type={showOpenAIKey ? "text" : "password"}
+                placeholder="sk-..."
+                value={settings.openai_api_key || ""}
+                onChange={async (e) => {
+                  const newSettings = {...settings, openai_api_key: e.target.value};
+                  setSettings(newSettings);
+                  if (isTauri()) {
+                    await invoke("save_settings", { newSettings });
+                  }
+                }}
                 />
             </div>
         )}
@@ -1901,10 +1927,16 @@ function App() {
                   </button>
                 </div>
                 <input 
-                    type={showOpenRouterKey ? "text" : "password"}
-                    placeholder="sk-or-..."
-                    value={settings.openrouter_api_key || ""}
-                    onChange={(e) => setSettings({...settings, openrouter_api_key: e.target.value})}
+                type={showOpenRouterKey ? "text" : "password"}
+                placeholder="sk-or-..."
+                value={settings.openrouter_api_key || ""}
+                onChange={async (e) => {
+                  const newSettings = {...settings, openrouter_api_key: e.target.value};
+                  setSettings(newSettings);
+                  if (isTauri()) {
+                    await invoke("save_settings", { newSettings });
+                  }
+                }}
                 />
             </div>
         )}
@@ -2323,7 +2355,13 @@ function App() {
               type="text" 
               placeholder="Enter your name for personalized AI responses..."
               value={settings.user_name || ""}
-              onChange={(e) => setSettings({...settings, user_name: e.target.value})}
+              onChange={async (e) => {
+                const newSettings = {...settings, user_name: e.target.value};
+                setSettings(newSettings);
+                if (isTauri()) {
+                  await invoke("save_settings", { newSettings });
+                }
+              }}
               style={{width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc'}}
             />
             <p className="description" style={{fontSize: '0.85em', marginTop: '4px', color: '#666'}}>
@@ -2372,10 +2410,16 @@ function App() {
           </div>
 
           <textarea 
-            value={settings.system_prompt}
-            onChange={(e) => setSettings({...settings, system_prompt: e.target.value})}
-            rows={8}
-            placeholder="Enter system prompt..."
+              value={settings.system_prompt}
+              onChange={async (e) => {
+                const newSettings = {...settings, system_prompt: e.target.value};
+                setSettings(newSettings);
+                if (isTauri()) {
+                  await invoke("save_settings", { newSettings });
+                }
+              }}
+              rows={8}
+              placeholder="Enter system prompt..."
           />
           <button className="reset-btn" onClick={handleResetPrompt}>
             Reset to Default
@@ -2426,17 +2470,29 @@ function App() {
         <h2>Options</h2>
         <label className="checkbox-label">
           <input
-            type="checkbox"
-            checked={settings.auto_copy}
-            onChange={(e) => setSettings({...settings, auto_copy: e.target.checked})}
+                type="checkbox"
+                checked={settings.auto_copy}
+                onChange={async (e) => {
+                  const newSettings = {...settings, auto_copy: e.target.checked};
+                  setSettings(newSettings);
+                  if (isTauri()) {
+                    await invoke("save_settings", { newSettings });
+                  }
+                }}
           />
           <span>Also copy transcript to clipboard</span>
         </label>
         <label className="checkbox-label">
           <input
-            type="checkbox"
-            checked={settings.auto_start}
-            onChange={(e) => setSettings({...settings, auto_start: e.target.checked})}
+                type="checkbox"
+                checked={settings.auto_start}
+                onChange={async (e) => {
+                  const newSettings = {...settings, auto_start: e.target.checked};
+                  setSettings(newSettings);
+                  if (isTauri()) {
+                    await invoke("save_settings", { newSettings });
+                  }
+                }}
           />
           <span>Start at login</span>
         </label>
