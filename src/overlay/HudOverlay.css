@@ -12,16 +12,16 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: white;
-  padding: 60px 80px;
-  border-radius: 24px;
-  font-size: 48px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: 700;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.15);
   animation: hud-fade-in 0.2s ease-out;
-  min-width: 600px;
-  letter-spacing: 0.5px;
+  max-width: 380px;
+  letter-spacing: 0.2px;
 }
 
 @keyframes hud-fade-in {

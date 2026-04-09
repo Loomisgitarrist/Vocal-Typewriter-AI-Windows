@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tauri::AppHandle;
@@ -173,27 +174,90 @@ impl Default for Settings {
     }
 }
 
-/// Get the settings file path
+fn app_identifier(app: &AppHandle) -> String {
+    let id = app.config().identifier.clone();
+    if id.trim().is_empty() {
+        "vocal-typewriter".to_string()
+    } else {
+        id
+    }
+}
+
+fn push_unique(vec: &mut Vec<PathBuf>, item: PathBuf) {
+    if !vec.iter().any(|p| p == &item) {
+        vec.push(item);
+    }
+}
+
+fn settings_dir_candidates(app: &AppHandle) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+
+    if let Ok(dir) = app.path().app_data_dir() {
+        push_unique(&mut dirs, dir);
+    }
+
+    if let Ok(dir) = app.path().app_local_data_dir() {
+        push_unique(&mut dirs, dir);
+    }
+
+    if let Ok(dir) = app.path().app_config_dir() {
+        push_unique(&mut dirs, dir);
+    }
+
+    let app_id = app_identifier(app);
+
+    if cfg!(windows) {
+        if let Some(base) = env::var_os("APPDATA").map(PathBuf::from) {
+            push_unique(&mut dirs, base.join(&app_id));
+        }
+        if let Some(base) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+            push_unique(&mut dirs, base.join(&app_id));
+        }
+    } else {
+        if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
+            push_unique(&mut dirs, home.join(".config").join(&app_id));
+        }
+    }
+
+    push_unique(&mut dirs, env::temp_dir().join(app_id));
+
+    if dirs.is_empty() {
+        dirs.push(PathBuf::from("."));
+    }
+
+    dirs
+}
+
 pub fn get_settings_path(app: &AppHandle) -> PathBuf {
-    let data_dir = app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let dirs = settings_dir_candidates(app);
+    let data_dir = dirs
+        .first()
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from("."));
     let path = data_dir.join("settings.json");
-    println!("📁 get_settings_path: app_data_dir = {:?}", data_dir);
-    println!("📁 get_settings_path: final path = {:?}", path);
-    println!("📁 get_settings_path: path exists = {}", path.exists());
     path
 }
 
 /// Load settings from disk, or return defaults if not found
 pub fn load_settings(app: &AppHandle) -> Settings {
-    let path = get_settings_path(app);
-    
-    if path.exists() {
-        match fs::read_to_string(&path) {
-            Ok(contents) => {
-                match serde_json::from_str::<Settings>(&contents) {
+    let dirs = settings_dir_candidates(app);
+
+    for dir in dirs {
+        let path = dir.join("settings.json");
+        let backup_path = dir.join("settings.json.bak");
+
+        for candidate in [path, backup_path] {
+            if !candidate.exists() {
+                continue;
+            }
+
+            match fs::read_to_string(&candidate) {
+                Ok(contents) => match serde_json::from_str::<Settings>(&contents) {
                     Ok(mut settings) => {
-                        println!("✅ Settings loaded from {:?}. user_name: {:?}", path, settings.user_name);
-                        // Force migration back to llama3.2:1b for speed, but only if we are using the generic llama3
+                        println!(
+                            "✅ Settings loaded from {:?}. user_name: {:?}",
+                            candidate, settings.user_name
+                        );
                         if settings.ollama_model == "llama3" {
                             println!("⚠️ Automatically optimizing model to llama3.2:1b for speed");
                             settings.ollama_model = "llama3.2:1b".to_string();
@@ -210,12 +274,18 @@ pub fn load_settings(app: &AppHandle) -> Settings {
                         return settings;
                     }
                     Err(e) => {
-                        eprintln!("⚠️ Failed to parse settings file: {}. Using defaults.", e);
+                        eprintln!(
+                            "⚠️ Failed to parse settings file {:?}: {}. Trying next location.",
+                            candidate, e
+                        );
                     }
+                },
+                Err(e) => {
+                    eprintln!(
+                        "⚠️ Failed to read settings file {:?}: {}. Trying next location.",
+                        candidate, e
+                    );
                 }
-            }
-            Err(e) => {
-                eprintln!("⚠️ Failed to read settings file: {}. Using defaults.", e);
             }
         }
     }
@@ -224,34 +294,44 @@ pub fn load_settings(app: &AppHandle) -> Settings {
     Settings::default()
 }
 
+fn atomic_write(path: &PathBuf, contents: &str) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            return Err(format!("Failed to create settings directory: {}", e));
+        }
+    }
+
+    let tmp_path = path.with_extension("json.tmp");
+    let backup_path = path.with_extension("json.bak");
+
+    fs::write(&tmp_path, contents).map_err(|e| format!("Failed to write temp settings file: {}", e))?;
+
+    if path.exists() {
+        let _ = fs::remove_file(&backup_path);
+        fs::rename(path, &backup_path)
+            .map_err(|e| format!("Failed to prepare settings file replace: {}", e))?;
+    }
+
+    match fs::rename(&tmp_path, path) {
+        Ok(()) => {
+            let _ = fs::remove_file(&backup_path);
+            Ok(())
+        }
+        Err(e) => {
+            let _ = fs::remove_file(&tmp_path);
+            if backup_path.exists() {
+                let _ = fs::rename(&backup_path, path);
+            }
+            Err(format!("Failed to commit settings file: {}", e))
+        }
+    }
+}
+
 /// Save settings to disk
 pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
-    let path = get_settings_path(app);
-    
-    println!("💾 save_settings: Attempting to save to {:?}", path);
-    
-    // Debug: Check if path resolution is working
-    match app.path().app_data_dir() {
-        Ok(data_dir) => println!("💾 app_data_dir resolved to: {:?}", data_dir),
-        Err(e) => println!("💾 app_data_dir ERROR: {:?}", e),
-    }
-    
-    // Check if parent directory exists
-    if let Some(parent) = path.parent() {
-        println!("💾 Parent directory: {:?}", parent);
-        println!("💾 Parent exists: {}", parent.exists());
-        if !parent.exists() {
-            println!("💾 Creating parent directory...");
-        }
-        if let Err(e) = fs::create_dir_all(parent) {
-            let err_msg = format!("Failed to create settings directory: {}", e);
-            println!("💾 ❌ {}", err_msg);
-            return Err(err_msg);
-        }
-        println!("💾 Parent directory ready");
-    }
-    
-    // Serialize to JSON
+    let dirs = settings_dir_candidates(app);
+    println!("💾 save_settings: candidate dirs = {:?}", dirs);
+
     let json = match serde_json::to_string_pretty(settings) {
         Ok(j) => {
             println!("💾 JSON serialized: {} bytes", j.len());
@@ -263,23 +343,52 @@ pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<(), String>
             return Err(err_msg);
         }
     };
-    
-    // Write to file
-    match fs::write(&path, &json) {
-        Ok(()) => {
-            println!("💾 ✅ File written successfully");
-            println!("💾 ✅ File exists now: {}", path.exists());
-            if let Ok(meta) = path.metadata() {
-                println!("💾 ✅ File size: {} bytes", meta.len());
+
+    let mut last_err: Option<String> = None;
+
+    for dir in dirs {
+        let path = dir.join("settings.json");
+        match atomic_write(&path, &json) {
+            Ok(()) => {
+                println!("✅ Settings saved to {:?}", path);
+                return Ok(());
             }
-        },
-        Err(e) => {
-            let err_msg = format!("Failed to write settings file: {}", e);
-            println!("💾 ❌ {}", err_msg);
-            return Err(err_msg);
+            Err(e) => {
+                eprintln!("💾 ❌ Failed to save settings to {:?}: {}", path, e);
+                last_err = Some(e);
+            }
         }
     }
-    
-    println!("✅ Settings saved to {:?}", path);
-    Ok(())
+
+    Err(last_err.unwrap_or_else(|| "Failed to save settings".to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_temp_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        env::temp_dir().join(format!("vocal-typewriter-test-{}", nanos))
+    }
+
+    #[test]
+    fn atomic_write_roundtrip() {
+        let dir = unique_temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+
+        let mut s = Settings::default();
+        s.user_name = Some("test-user".to_string());
+        let json = serde_json::to_string_pretty(&s).unwrap();
+
+        atomic_write(&path, &json).unwrap();
+        let read = fs::read_to_string(&path).unwrap();
+        let parsed: Settings = serde_json::from_str(&read).unwrap();
+        assert_eq!(parsed.user_name, Some("test-user".to_string()));
+    }
 }

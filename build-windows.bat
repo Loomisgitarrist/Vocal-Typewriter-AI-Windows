@@ -54,11 +54,17 @@ echo ========================================================
 echo Building Windows x64 version...
 echo ========================================================
 set CARGO_BUILD_JOBS=2
-call bun tauri build --target x86_64-pc-windows-msvc
+call bunx tauri build --target x86_64-pc-windows-msvc --bundles nsis,msi
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] x64 build failed
-    pause
-    exit /b 1
+    echo [WARN] x64 bundling failed. Attempting portable exe fallback...
+    if exist "src-tauri\target\x86_64-pc-windows-msvc\release\vocal-typewriter.exe" (
+        copy /Y "src-tauri\target\x86_64-pc-windows-msvc\release\vocal-typewriter.exe" "release-windows\Vocal-Typewriter-AI-x64-portable.exe" >nul 2>&1
+        echo [OK] x64 portable exe prepared
+    ) else (
+        echo [ERROR] x64 build failed and no portable exe found
+        pause
+        exit /b 1
+    )
 )
 
 REM Copy x64 artifacts
@@ -73,11 +79,17 @@ echo ========================================================
 echo Building Windows ARM64 version...
 echo ========================================================
 set CARGO_BUILD_JOBS=2
-call bun tauri build --target aarch64-pc-windows-msvc
+call bunx tauri build --target aarch64-pc-windows-msvc --bundles nsis,msi
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] ARM64 build failed
-    pause
-    exit /b 1
+    echo [WARN] ARM64 bundling failed. Attempting portable exe fallback...
+    if exist "src-tauri\target\aarch64-pc-windows-msvc\release\vocal-typewriter.exe" (
+        copy /Y "src-tauri\target\aarch64-pc-windows-msvc\release\vocal-typewriter.exe" "release-windows\Vocal-Typewriter-AI-arm64-portable.exe" >nul 2>&1
+        echo [OK] ARM64 portable exe prepared
+    ) else (
+        echo [ERROR] ARM64 build failed and no portable exe found
+        pause
+        exit /b 1
+    )
 )
 
 REM Copy ARM64 artifacts

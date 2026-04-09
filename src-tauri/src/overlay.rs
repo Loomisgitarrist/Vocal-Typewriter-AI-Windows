@@ -24,8 +24,8 @@ tauri_panel! {
 const OVERLAY_WIDTH: f64 = 172.0;
 const OVERLAY_HEIGHT: f64 = 36.0;
 
-const HUD_WIDTH: f64 = 1000.0;
-const HUD_HEIGHT: f64 = 400.0;
+const HUD_WIDTH: f64 = 420.0;
+const HUD_HEIGHT: f64 = 130.0;
 
 #[cfg(target_os = "macos")]
 const OVERLAY_TOP_OFFSET: f64 = 46.0;
@@ -368,10 +368,10 @@ pub fn show_hud_message(app_handle: &AppHandle, message: &str) {
         // Also emit event as backup
         let _ = window.emit("hud-message", message);
         
-        // Hide after 2 seconds
+        // Hide quickly
         let window_clone = window.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(2));
+            std::thread::sleep(std::time::Duration::from_millis(900));
             let _ = window_clone.hide();
         });
     }

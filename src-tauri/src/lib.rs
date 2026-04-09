@@ -75,6 +75,15 @@ pub struct AppState {
     pub highlight_status: Arc<Mutex<HighlightStatus>>,
 }
 
+fn normalize_shortcut_str(shortcut: &str) -> String {
+    shortcut
+        .split('+')
+        .map(|part| part.trim().to_lowercase().replace("option", "alt"))
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 pub fn process_audio_and_submit(
     app: tauri::AppHandle,
     audio_data: Vec<f32>,
@@ -463,10 +472,22 @@ fn save_settings(
     let old_raw_mode_shortcut = state.current_raw_mode_shortcut.lock().map_err(|e| e.to_string())?.clone();
     let old_highlight_shortcut = state.current_highlight_shortcut.lock().map_err(|e| e.to_string())?.clone();
     
-    let new_shortcut_str = new_settings.push_to_talk_key.clone();
-    let new_style_shortcut_str = new_settings.style_selector_key.clone();
-    let new_raw_mode_shortcut_str = new_settings.raw_mode_toggle_key.clone();
-    let new_highlight_shortcut_str = new_settings.highlight_shortcut.clone();
+    let new_shortcut_norm = normalize_shortcut_str(&new_settings.push_to_talk_key);
+    let new_style_shortcut_norm = new_settings
+        .style_selector_key
+        .as_deref()
+        .map(normalize_shortcut_str)
+        .filter(|s| !s.is_empty());
+    let new_raw_mode_shortcut_norm = new_settings
+        .raw_mode_toggle_key
+        .as_deref()
+        .map(normalize_shortcut_str)
+        .filter(|s| !s.is_empty());
+    let new_highlight_shortcut_norm = new_settings
+        .highlight_shortcut
+        .as_deref()
+        .map(normalize_shortcut_str)
+        .filter(|s| !s.is_empty());
 
     // Check if input device changed - SAFE LOCKING
     let (old_input_device_id, old_clamshell_mic, old_correction_mode) = {
@@ -515,19 +536,20 @@ fn save_settings(
     state.audio_manager.update_voice_trigger_state();
     
     // If shortcut changed, re-register it
-    if old_shortcut.as_ref() != Some(&new_shortcut_str) {
-        println!("🔄 Shortcut changed from {:?} to {}", old_shortcut, new_shortcut_str);
+    if old_shortcut.as_deref() != Some(&new_shortcut_norm) {
+        println!("🔄 Shortcut changed from {:?} to {}", old_shortcut, new_shortcut_norm);
         
         // Unregister old shortcut
         if let Some(old_str) = &old_shortcut {
-            if let Ok(old_sc) = old_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            if let Ok(old_sc) = old_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 let _ = app.global_shortcut().unregister(old_sc);
                 println!("🗑️ Unregistered old shortcut: {}", old_str);
             }
         }
         
         // Register new shortcut
-        if let Ok(new_sc) = new_shortcut_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+        if let Ok(new_sc) = new_shortcut_norm.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            let _ = app.global_shortcut().unregister(new_sc);
             let shortcut_result = app.global_shortcut().on_shortcut(new_sc, move |ah, _, event| {
                 if event.state == ShortcutState::Pressed {
                     let state: tauri::State<AppState> = ah.state();
@@ -604,33 +626,34 @@ fn save_settings(
             });
             if let Err(e) = shortcut_result {
                 eprintln!("❌ Failed to register new shortcut: {}", e);
-                return Err(format!("Failed to register shortcut '{}': {}", new_shortcut_str, e));
+                return Err(format!("Failed to register shortcut '{}': {}", new_shortcut_norm, e));
             }
-            println!("✅ New shortcut '{}' registered!", new_shortcut_str);
+            println!("✅ New shortcut '{}' registered!", new_shortcut_norm);
             if let Ok(mut guard) = state.current_shortcut.lock() {
-                *guard = Some(new_shortcut_str);
+                *guard = Some(new_shortcut_norm);
             }
         } else {
-            return Err(format!("Invalid shortcut format: '{}'. Use format like 'option+space' or 'ctrl+shift+r'", new_shortcut_str));
+            return Err(format!("Invalid shortcut format: '{}'. Use format like 'alt+space' or 'ctrl+shift+r'", new_shortcut_norm));
         }
     }
 
     // --- Update Style Selector Shortcut ---
-    if old_style_shortcut != new_style_shortcut_str {
-        println!("🔄 Style Shortcut changed from {:?} to {:?}", old_style_shortcut, new_style_shortcut_str);
+    if old_style_shortcut != new_style_shortcut_norm {
+        println!("🔄 Style Shortcut changed from {:?} to {:?}", old_style_shortcut, new_style_shortcut_norm);
         
         // Unregister old style shortcut
         if let Some(old_str) = &old_style_shortcut {
-            if let Ok(old_sc) = old_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            if let Ok(old_sc) = old_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 let _ = app.global_shortcut().unregister(old_sc);
                 println!("🗑️ Unregistered old style shortcut: {}", old_str);
             }
         }
         
         // Register new style shortcut (if set)
-        if let Some(new_str) = &new_style_shortcut_str {
+        if let Some(new_str) = &new_style_shortcut_norm {
             if !new_str.trim().is_empty() {
-                 if let Ok(new_sc) = new_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                 if let Ok(new_sc) = new_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    let _ = app.global_shortcut().unregister(new_sc);
                     let _ = app.global_shortcut().on_shortcut(new_sc, move |ah, _, event| {
                         if event.state == ShortcutState::Pressed {
                             // Play start sound
@@ -713,21 +736,22 @@ fn save_settings(
         }
     }
     // --- Update Raw Mode Toggle Shortcut ---
-    if old_raw_mode_shortcut != new_raw_mode_shortcut_str {
-        println!("🔄 Raw Mode Shortcut changed from {:?} to {:?}", old_raw_mode_shortcut, new_raw_mode_shortcut_str);
+    if old_raw_mode_shortcut != new_raw_mode_shortcut_norm {
+        println!("🔄 Raw Mode Shortcut changed from {:?} to {:?}", old_raw_mode_shortcut, new_raw_mode_shortcut_norm);
         
         // Unregister old shortcut
         if let Some(old_str) = &old_raw_mode_shortcut {
-            if let Ok(old_sc) = old_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            if let Ok(old_sc) = old_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 let _ = app.global_shortcut().unregister(old_sc);
                 println!("🗑️ Unregistered old raw mode shortcut: {}", old_str);
             }
         }
         
         // Register new shortcut
-        if let Some(new_str) = new_raw_mode_shortcut_str.clone() {
+        if let Some(new_str) = new_raw_mode_shortcut_norm.clone() {
             if !new_str.is_empty() {
-                 if let Ok(new_sc) = new_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                 if let Ok(new_sc) = new_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    let _ = app.global_shortcut().unregister(new_sc);
                     let _ = app.global_shortcut().on_shortcut(new_sc, move |ah, _, event| {
                          if event.state == ShortcutState::Pressed {
                             // Play start sound
@@ -802,21 +826,22 @@ fn save_settings(
     }
 
     // --- Update Highlight Shortcut ---
-    if old_highlight_shortcut != new_highlight_shortcut_str {
-        println!("🔄 Highlight Shortcut changed from {:?} to {:?}", old_highlight_shortcut, new_highlight_shortcut_str);
+    if old_highlight_shortcut != new_highlight_shortcut_norm {
+        println!("🔄 Highlight Shortcut changed from {:?} to {:?}", old_highlight_shortcut, new_highlight_shortcut_norm);
         
         // Unregister old shortcut
         if let Some(old_str) = &old_highlight_shortcut {
-            if let Ok(old_sc) = old_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            if let Ok(old_sc) = old_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 let _ = app.global_shortcut().unregister(old_sc);
                 println!("🗑️ Unregistered old highlight shortcut: {}", old_str);
             }
         }
         
         // Register new shortcut
-        if let Some(new_str) = new_highlight_shortcut_str.clone() {
+        if let Some(new_str) = new_highlight_shortcut_norm.clone() {
             if !new_str.is_empty() {
-                 if let Ok(new_sc) = new_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                 if let Ok(new_sc) = new_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    let _ = app.global_shortcut().unregister(new_sc);
                     let _ = app.global_shortcut().on_shortcut(new_sc, move |ah, _, event| {
                          if event.state == ShortcutState::Pressed {
                             let state: tauri::State<AppState> = ah.state();
@@ -1363,7 +1388,14 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![])));
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![])))
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            overlay::show_hud_message(app, "Already running - focusing window");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }));
 
     builder = init_nspanel(builder);
     
@@ -1516,6 +1548,7 @@ pub fn run() {
 
              // Register global shortcut using tauri-plugin-global-shortcut
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+            let _ = app.global_shortcut().unregister_all();
             
             // Get shortcut from settings
             let shortcut_str = {
@@ -1761,12 +1794,16 @@ pub fn run() {
             let style_shortcut_str = {
                 let state: tauri::State<AppState> = app.state();
                 let settings = state.settings.lock().unwrap();
-                settings.style_selector_key.clone()
+                settings
+                    .style_selector_key
+                    .as_deref()
+                    .map(normalize_shortcut_str)
+                    .filter(|s| !s.is_empty())
             };
 
             if let Some(style_shortcut_str) = style_shortcut_str {
                 println!("🎹 Registering Style Selector shortcut: {}", style_shortcut_str);
-                if let Ok(style_shortcut) = style_shortcut_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                if let Ok(style_shortcut) = style_shortcut_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                     let _ = app.global_shortcut().on_shortcut(style_shortcut, move |ah, _, event| {
                         if event.state == ShortcutState::Pressed {
                             if let Some(window) = ah.get_webview_window("style_selector") {
@@ -1791,13 +1828,17 @@ pub fn run() {
             let raw_mode_shortcut_str = {
                 let state: tauri::State<AppState> = app.state();
                 let settings = state.settings.lock().unwrap();
-                settings.raw_mode_toggle_key.clone()
+                settings
+                    .raw_mode_toggle_key
+                    .as_deref()
+                    .map(normalize_shortcut_str)
+                    .filter(|s| !s.is_empty())
             };
 
             if let Some(raw_mode_shortcut_str) = raw_mode_shortcut_str {
                 if !raw_mode_shortcut_str.is_empty() {
                     println!("🎹 Registering Raw Mode Toggle shortcut: {}", raw_mode_shortcut_str);
-                    if let Ok(raw_mode_shortcut) = raw_mode_shortcut_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    if let Ok(raw_mode_shortcut) = raw_mode_shortcut_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                         let ah_clone = app.handle().clone();
                         let _ = app.global_shortcut().on_shortcut(raw_mode_shortcut, move |ah, _, event| {
                             if event.state == ShortcutState::Pressed {
@@ -1853,13 +1894,17 @@ pub fn run() {
             let highlight_shortcut_str = {
                 let state: tauri::State<AppState> = app.state();
                 let settings = state.settings.lock().unwrap();
-                settings.highlight_shortcut.clone()
+                settings
+                    .highlight_shortcut
+                    .as_deref()
+                    .map(normalize_shortcut_str)
+                    .filter(|s| !s.is_empty())
             };
 
             if let Some(highlight_shortcut_str) = highlight_shortcut_str {
                 if !highlight_shortcut_str.is_empty() {
                     println!("🖍️ Registering Highlight shortcut: {}", highlight_shortcut_str);
-                    if let Ok(highlight_shortcut) = highlight_shortcut_str.to_lowercase().replace("option", "alt").parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    if let Ok(highlight_shortcut) = highlight_shortcut_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                         let _ = app.global_shortcut().on_shortcut(highlight_shortcut, move |ah, _, event| {
                             if event.state == ShortcutState::Pressed {
                                 let state: tauri::State<AppState> = ah.state();
