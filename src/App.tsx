@@ -228,7 +228,7 @@ const keyEventToString = (e: KeyboardEvent): string => {
   const parts: string[] = [];
   
   // Always show modifier keys if pressed
-  if (e.metaKey) parts.push("⌘");
+  if (e.metaKey) parts.push(IS_WINDOWS_PLATFORM ? "Win" : "⌘");
   if (e.ctrlKey) parts.push("Ctrl");
   if (e.altKey) parts.push("Alt");
   if (e.shiftKey) parts.push("Shift");
@@ -270,7 +270,7 @@ const keyEventToString = (e: KeyboardEvent): string => {
   else if (key === "Pause") key = "Pause";
   else if (key === "PrintScreen") key = "PrintScreen";
   else if (key === "ContextMenu") key = "ContextMenu";
-  else if (key === "Meta") key = "⌘";
+  else if (key === "Meta") key = IS_WINDOWS_PLATFORM ? "Win" : "⌘";
   else if (key === "ContextMenu") key = "Menu";
   else if (key === "OS") key = "OS";
   else if (key === "Super") key = "Super";
@@ -472,13 +472,15 @@ function App() {
     screen_capture: false,
   });
   const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
-  const [displayShortcut, setDisplayShortcut] = useState("Option + Space");
+  // Seed the display strings from the platform defaults so the first paint never shows
+  // macOS key names on Windows (it used to flash "Option + S" until settings loaded).
+  const [displayShortcut, setDisplayShortcut] = useState(DEFAULT_PTT_KEY.replace(/\+/g, " + "));
   const [isRecordingStyleShortcut, setIsRecordingStyleShortcut] = useState(false);
-  const [displayStyleShortcut, setDisplayStyleShortcut] = useState("Option + S");
+  const [displayStyleShortcut, setDisplayStyleShortcut] = useState(DEFAULT_STYLE_KEY.replace(/\+/g, " + "));
   const [isRecordingRawModeShortcut, setIsRecordingRawModeShortcut] = useState(false);
   const [displayRawModeShortcut, setDisplayRawModeShortcut] = useState("None");
   const [isRecordingHighlightShortcut, setIsRecordingHighlightShortcut] = useState(false);
-  const [displayHighlightShortcut, setDisplayHighlightShortcut] = useState("Option + H");
+  const [displayHighlightShortcut, setDisplayHighlightShortcut] = useState(DEFAULT_HIGHLIGHT_KEY.replace(/\+/g, " + "));
   const [styleLang, setStyleLang] = useState<"en" | "de">("en");
   
   // Audio waveform state
@@ -792,12 +794,22 @@ function App() {
   };
 
   const formatShortcutForDisplay = (shortcut: string): string => {
-    return shortcut
-      .replace("CommandOrControl", "⌘")
-      .replace("Control", "Ctrl")
-      .replace("Alt", "Option")
-      .replace("+", " + ")
-      .replace(/\+/g, " + ");
+    // Display must match the platform's real key names. On Windows "Option" does not
+    // exist and "⌘" means nothing — showing them makes a current build look like an
+    // old macOS port.
+    let s = shortcut;
+    if (IS_WINDOWS_PLATFORM) {
+      s = s
+        .replace(/CommandOrControl|CommandOrCtrl|Command|Cmd/gi, "Ctrl")
+        .replace(/Option/gi, "Alt")
+        .replace(/Meta/gi, "Win");
+    } else {
+      s = s
+        .replace("CommandOrControl", "⌘")
+        .replace("Control", "Ctrl")
+        .replace("Alt", "Option");
+    }
+    return s.replace(/\+/g, " + ");
   };
 
   const checkPermissions = async () => {
