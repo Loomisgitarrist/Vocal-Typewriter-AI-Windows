@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vocal Typewriter AI",
+  "productName": "Vocal Typewriter Server",
     "version": "1.0.0",
-    "identifier": "com.vocaltypewriter.newapp",
+    "identifier": "com.vocaltypewriter.server",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
