@@ -103,7 +103,14 @@ pub struct Settings {
 fn default_tone() -> Option<String> { Some("REMOVE".to_string()) }
 
 fn default_last_llm_mode() -> String { "local".to_string() }
-fn default_highlight_shortcut() -> Option<String> { Some("Option+H".to_string()) }
+fn default_highlight_shortcut() -> Option<String> {
+    // Alt+H is fine on Windows but keep the platform defaults distinct and free of
+    // the OS-reserved combos (Alt+Space opens the window menu on Windows).
+    #[cfg(target_os = "windows")]
+    { Some("Ctrl+Shift+H".to_string()) }
+    #[cfg(not(target_os = "windows"))]
+    { Some("Option+H".to_string()) }
+}
 fn default_highlight_mode() -> String { "text".to_string() }
 fn default_highlight_toggle_key() -> Option<String> { Some("Shift+Space".to_string()) }
 fn default_ollama_vision_model() -> String { "moondream".to_string() }
@@ -111,7 +118,12 @@ fn default_ollama_vision_model() -> String { "moondream".to_string() }
 fn default_voice_command_open_phrase() -> String { "open styles".to_string() }
 fn default_voice_command_close_phrase() -> String { "close styles".to_string() }
 
-fn default_style_selector_key() -> Option<String> { Some("Option+S".to_string()) }
+fn default_style_selector_key() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    { Some("Ctrl+Shift+S".to_string()) }
+    #[cfg(not(target_os = "windows"))]
+    { Some("Option+S".to_string()) }
+}
 
 fn default_openai_model() -> String {
     "gpt-4o-mini".to_string()
@@ -125,7 +137,14 @@ fn default_active_model_id() -> String { "parakeet-v3".to_string() }
 fn default_transcription_engine() -> String { "parakeet".to_string() }
 
 fn default_shortcut() -> String { "CommandOrControl+Shift+Space".to_string() }
-fn default_push_to_talk() -> String { "Option+Space".to_string() }
+fn default_push_to_talk() -> String {
+    // "Option+Space" is the macOS default. On Windows that resolves to Alt+Space,
+    // which the shell swallows as the window-menu shortcut — so use Ctrl+Shift+Space.
+    #[cfg(target_os = "windows")]
+    { "Ctrl+Shift+Space".to_string() }
+    #[cfg(not(target_os = "windows"))]
+    { "Option+Space".to_string() }
+}
 fn default_bool_true() -> bool { true }
 fn default_bool_false() -> bool { false }
 fn default_correction_mode() -> String { "local".to_string() }
@@ -138,8 +157,8 @@ fn default_overlay_position() -> OverlayPosition { OverlayPosition::Bottom }
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            shortcut: "CommandOrControl+Shift+Space".to_string(),
-            push_to_talk_key: "Option+Space".to_string(),  // Option+Space on macOS, Alt+Space on Windows
+            shortcut: default_shortcut(),
+            push_to_talk_key: default_push_to_talk(),
             auto_copy: true,
             correction_mode: "local".to_string(),
             ollama_model: "llama3".to_string(),
@@ -156,7 +175,7 @@ impl Default for Settings {
             openrouter_model: default_openrouter_model(),
             active_model_id: default_active_model_id(),
             transcription_engine: default_transcription_engine(),
-            style_selector_key: Some("Option+S".to_string()),
+            style_selector_key: default_style_selector_key(),
             voice_command_enabled: false,
             voice_command_open_phrase: "open styles".to_string(),
             voice_command_close_phrase: "close styles".to_string(),

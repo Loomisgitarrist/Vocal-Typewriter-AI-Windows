@@ -75,10 +75,41 @@ pub struct AppState {
     pub highlight_status: Arc<Mutex<HighlightStatus>>,
 }
 
+/// Maps one combo token to the spelling the platform's shortcut parser understands.
+///
+/// The UI stores a portable, macOS-flavoured form ("CommandOrControl", "Option", …).
+/// The Windows build used to hand those tokens to `tauri-plugin-global-shortcut`
+/// unchanged, where they are not a real modifier — registration reported success
+/// while the key never fired. Only the mapping below changes behaviour; key names
+/// ("space", "t", "f10", …) are left untouched.
+fn normalize_modifier_token(part: &str) -> String {
+    let token = part.trim().to_lowercase();
+    if token.is_empty() {
+        return token;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return match token.as_str() {
+            "commandorcontrol" | "cmdorctrl" | "command" | "cmd" => "ctrl".to_string(),
+            "option" => "alt".to_string(),
+            other => other.to_string(),
+        };
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        match token.as_str() {
+            "option" => "alt".to_string(),
+            other => other.to_string(),
+        }
+    }
+}
+
 fn normalize_shortcut_str(shortcut: &str) -> String {
     shortcut
         .split('+')
-        .map(|part| part.trim().to_lowercase().replace("option", "alt"))
+        .map(normalize_modifier_token)
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("+")
@@ -1551,15 +1582,18 @@ pub fn run() {
             let _ = app.global_shortcut().unregister_all();
             
             // Get shortcut from settings
-            let shortcut_str = {
+            let (stored_shortcut, shortcut_str) = {
                 let state: tauri::State<AppState> = app.state();
                 let settings = state.settings.lock().unwrap();
-                // Normalize shortcut format for tauri-plugin-global-shortcut
-                // "Option+Space" -> "option+space", "CommandOrControl+Shift+A" -> "commandorcontrol+shift+a"
-                settings.push_to_talk_key.to_lowercase().replace("option", "alt")
+                // Same normalization as every other shortcut. It used to be
+                // `.replace("option", "alt")` only, so a stored "CommandOrControl+T"
+                // reached the Windows parser as "commandorcontrol+t" and never fired.
+                let stored = settings.push_to_talk_key.clone();
+                let normalized = normalize_shortcut_str(&stored);
+                (stored, normalized)
             };
             
-            println!("🎹 Registering global shortcut: {}", shortcut_str);
+            println!("🎹 Registering global shortcut: {} (stored: {})", shortcut_str, stored_shortcut);
             
             if let Ok(shortcut) = shortcut_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 println!("✅ Shortcut parsed successfully");

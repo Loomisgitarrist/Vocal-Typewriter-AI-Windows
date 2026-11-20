@@ -331,7 +331,7 @@ const keyEventToStorageFormat = (e: KeyboardEvent): string => {
   const parts: string[] = [];
   
   // Always show modifier keys if pressed
-  if (e.metaKey || e.ctrlKey) parts.push("CommandOrControl");
+  if (e.metaKey || e.ctrlKey) parts.push(PRIMARY_MODIFIER);
   if (e.altKey) parts.push("Alt");
   if (e.shiftKey) parts.push("Shift");
   
@@ -427,10 +427,21 @@ const keyEventToStorageFormat = (e: KeyboardEvent): string => {
   return parts.join("+");
 };
 
+// The UI has always stored macOS-style names ("CommandOrControl", "Option") and let the
+// Rust side deal with them. That only ever mapped "Option" -> "Alt", so on Windows the
+// global-shortcut plugin received a modifier it does not know and the key never fired.
+// Store the platform's own spelling instead, and keep the defaults off Alt+Space, which
+// the Windows shell reserves for the window menu.
+const IS_WINDOWS_PLATFORM = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+const PRIMARY_MODIFIER = IS_WINDOWS_PLATFORM ? "Ctrl" : "CommandOrControl";
+const DEFAULT_PTT_KEY = IS_WINDOWS_PLATFORM ? "Ctrl+Shift+Space" : "Option+Space";
+const DEFAULT_STYLE_KEY = IS_WINDOWS_PLATFORM ? "Ctrl+Shift+S" : "Option+S";
+const DEFAULT_HIGHLIGHT_KEY = IS_WINDOWS_PLATFORM ? "Ctrl+Shift+H" : "Option+H";
+
 function App() {
   const [settings, setSettings] = useState<Settings>({
-    shortcut: "CommandOrControl+Shift+Space",
-    push_to_talk_key: "Option+Space",
+    shortcut: DEFAULT_PTT_KEY,
+    push_to_talk_key: DEFAULT_PTT_KEY,
     auto_copy: true,
     correction_mode: "local",
     ollama_model: "llama3",
@@ -444,8 +455,8 @@ function App() {
     openrouter_model: "google/gemini-2.0-flash-exp:free",
     transcription_engine: "parakeet",
     active_model_id: "parakeet-v3",
-    style_selector_key: "Option+S",
-    highlight_shortcut: "Option+H",
+    style_selector_key: DEFAULT_STYLE_KEY,
+    highlight_shortcut: DEFAULT_HIGHLIGHT_KEY,
     highlight_mode: "text",
   });
   
@@ -1240,7 +1251,7 @@ function App() {
 
   // Reset individual shortcuts
   const resetPushToTalkShortcut = async () => {
-    const defaultShortcut = "CommandOrControl+Shift+Space";
+    const defaultShortcut = DEFAULT_PTT_KEY;
     const newSettings = {...settings, push_to_talk_key: defaultShortcut};
     setSettings(newSettings);
     setDisplayShortcut(formatShortcutForDisplay(defaultShortcut));
@@ -1256,8 +1267,7 @@ function App() {
   };
 
   const resetStyleShortcut = async () => {
-    // Use Option as default for Mac users
-    const defaultShortcut = "Option+S"; 
+    const defaultShortcut = DEFAULT_STYLE_KEY;
     const newSettings = {...settings, style_selector_key: defaultShortcut};
     setSettings(newSettings);
     setDisplayStyleShortcut(formatShortcutForDisplay(defaultShortcut));
@@ -1286,7 +1296,7 @@ function App() {
   };
 
   const resetHighlightShortcut = async () => {
-    const defaultShortcut = "Option+H";
+    const defaultShortcut = DEFAULT_HIGHLIGHT_KEY;
     const newSettings = {...settings, highlight_shortcut: defaultShortcut};
     setSettings(newSettings);
     setDisplayHighlightShortcut(formatShortcutForDisplay(defaultShortcut));
@@ -1304,16 +1314,16 @@ function App() {
   const resetAllShortcuts = async () => {
     const newSettings = {
       ...settings,
-      push_to_talk_key: "CommandOrControl+Shift+Space",
-      style_selector_key: "Option+S",
+      push_to_talk_key: DEFAULT_PTT_KEY,
+      style_selector_key: DEFAULT_STYLE_KEY,
       raw_mode_toggle_key: undefined,
-      highlight_shortcut: "Option+H"
+      highlight_shortcut: DEFAULT_HIGHLIGHT_KEY
     };
     setSettings(newSettings);
-    setDisplayShortcut(formatShortcutForDisplay("CommandOrControl+Shift+Space"));
-    setDisplayStyleShortcut(formatShortcutForDisplay("Option+S"));
+    setDisplayShortcut(formatShortcutForDisplay(DEFAULT_PTT_KEY));
+    setDisplayStyleShortcut(formatShortcutForDisplay(DEFAULT_STYLE_KEY));
     setDisplayRawModeShortcut("None");
-    setDisplayHighlightShortcut(formatShortcutForDisplay("Option+H"));
+    setDisplayHighlightShortcut(formatShortcutForDisplay(DEFAULT_HIGHLIGHT_KEY));
     
     if (isTauri()) {
       try {
@@ -1569,7 +1579,7 @@ function App() {
 
         <div style={{display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '12px'}}>
           <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-             <button className="reset-icon-btn" onClick={resetStyleShortcut} title="Reset to default: Option+S">
+             <button className="reset-icon-btn" onClick={resetStyleShortcut} title={`Reset to default: ${DEFAULT_STYLE_KEY}`}>
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" />
                  <path d="M3 5v7h7" />
@@ -1644,7 +1654,7 @@ function App() {
 
         <div style={{display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '12px'}}>
           <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-             <button className="reset-icon-btn" onClick={resetHighlightShortcut} title="Reset to default: Option+H">
+             <button className="reset-icon-btn" onClick={resetHighlightShortcut} title={`Reset to default: ${DEFAULT_HIGHLIGHT_KEY}`}>
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" />
                  <path d="M3 5v7h7" />
